@@ -10,7 +10,7 @@ import sqlglot_wrapper as sqlanalyzer
 """
 def main():
     Class_Example_Switch = True
-    Class_Query_Switch = False
+    Class_Query_Switch = True
     Class_Query_Analyzer = True
 
     tmp_example = Example()
@@ -52,7 +52,7 @@ NOTE: Do not run ALTER/DELETE/UPDATE/ETC. This is for QUERIES
 @return list of tuples where each tuple is (query string, result string)
 """
 def run_class_queries(database):
-    query_result_list = database.run_queries()
+    query_result_list = database.run_queries(database.get_class_query_examples())
     for query, result in query_result_list:
         print('QUERY:')
         print(query.strip())
