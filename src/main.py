@@ -1,7 +1,7 @@
 # SQLite is built-in to Python 3.11.5
 import sqlite3
 from class_example import Example
-
+import sqlglot_wrapper as sqlanalyzer
 """
 # Main function that we should alter depending on what we want to do.
 # Set the _Switch you want enabled to True and disable by False
@@ -10,7 +10,8 @@ from class_example import Example
 """
 def main():
     Class_Example_Switch = True
-    Class_Query_Switch = True
+    Class_Query_Switch = False
+    Class_Query_Analyzer = True
 
     tmp_example = Example()
     if ( Class_Example_Switch ):
@@ -25,6 +26,9 @@ def main():
         if ( Class_Example_Switch == False ):
             print('WARNING: Queries are running on EMPTY DATABASE\n')
         run_class_queries(tmp_example)
+    
+    if ( Class_Query_Analyzer ):
+        run_class_analyzer(tmp_example)
 
 """        
 # Setup Example Relationship Database from class as example
@@ -60,7 +64,19 @@ def run_class_queries(database):
         print('\n')
     
     
-    
+
+def run_class_analyzer(database):
+    analyzer = sqlanalyzer.sqlglot_wrapper()
+    list_of_queries = database.get_class_query_examples()
+    for query in list_of_queries:
+        print('Query: ')
+        print(query.strip())
+        print('')
+        print('Expression: ')
+        print(repr(analyzer.analyze_query(query)))
+        print('#####################################')
+        print('')
+
     
 
 
