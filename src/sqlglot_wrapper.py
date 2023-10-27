@@ -19,3 +19,4 @@ class sqlglot_wrapper:
             return sqlglot.parse_one(sql[0], read=sqlglot.Dialects.SQLITE)
         except sqlglot.ParseError as e:
             return str(e.errors)
+
