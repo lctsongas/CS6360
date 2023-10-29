@@ -1,5 +1,5 @@
 # SQLite is built-in to Python 3.11.5
-import sqlite3
+import sqlite3, sys
 from database_wrapper import *
 from sql_query_wrapper import query_object
 import sqlglot_wrapper as sqlanalyzer
@@ -47,21 +47,24 @@ Run the optimized and unoptimized queries and compare execution times
 """
 def run_project_queries(database):
     query_result_list = database.run_queries(database.get_query_examples())
+    f = open("output.txt", "w")
+    #f = sys.stdout
     for original, optimized in query_result_list:
-        print('ORIGINAL QUERY:')
-        print(original[0].strip())
-        print('\n')
-        print('OPTIMIZED QUERY:')
-        print(optimized[0].strip())
-        print('\n')
+        print('ORIGINAL QUERY:', file=f)
+        print(original[0].strip(), file=f)
+        print('\n', file=f)
+        print('OPTIMIZED QUERY:', file=f)
+        print(optimized[0].strip(), file=f)
+        print('\n', file=f)
         match = "NOT EQUIVALENT RESULT!"
         if ( original[1] == optimized[1] ):
             match = ""
-        print('RESULT:' + match)
+        print('RESULT:' + match, file=f)
         # some results may be multiple rows so print out individually
         for row in original[1]:
-            print(row)
-        print('\n')
+            print(row, file=f)
+        print('\n', file=f)
+    f.close()
 
 def run_project_analyzer(database):
     return None
@@ -86,7 +89,8 @@ def run_class_example_create():
 def run_project_example_create():
     # Call __init__ function here so x = Object reference
     # x is not a SQLite DB that exists ONLY in RAM
-    x = ProjectExample()
+    db_path = os.path.join(os.path.dirname(__file__), "../sakila/sakila-sqlite3-main/sakila_master.db")
+    x = ProjectExample(db_path)
     # Create the basic Schema and values for the database
     x.initialize_default_database()
     # pass-back the Example database object fully created

@@ -9,13 +9,17 @@ class db_builder:
     Also can be used to take any db and compare to others
     with common functions
     """
-    def __init__(self):
+    def __init__(self, database_file = None):
         # Using :memory: keyword so database ONLY exists
         # in RAM. This will avoid issues when storing class
         # database in actual memory and opening multiple times
         # This also means you can have multiple instances of the
         # class database so be mindful of that!
-        self.db = sqlite3.connect(':memory:')
+        if ( database_file != None):
+            self.db = sqlite3.connect(database_file)
+        else:    
+            self.db = sqlite3.connect(':memory:')
+        self.db_file = database_file
     
     
     """
@@ -23,15 +27,13 @@ class db_builder:
         commands that create the database structure
     @return : True if successful
     """
-    def initialize_database(self, path_to_schema_file, sql_dialect = sqlglot.Dialects.SQLITE):
+    def initialize_database(self, path_to_schema_file):
         try:
             # cursor seems to be correct way to begin accessing SQLite DB
             # Reference: https://docs.python.org/3.8/library/sqlite3.html
             cur = self.db.cursor()
             # read in the file as a whole
             database_schema_in_text = Path(path_to_schema_file).read_text()
-            # if not sqlite, then turn into sqlite
-            database_schema_in_text = self.translate_sql(database_schema_in_text, sql_dialect)
             # Will use the executescript function to build entire table
             # by reading in the file path_to_db_file
             cur.executescript(database_schema_in_text)
@@ -46,33 +48,19 @@ class db_builder:
             sys.exit(0)
             return False
 
-    """
-    @param sql_string : sql string 
-    @param sql_dialect : the sql_string's sql-flavor. Default is sqlite
-    
-    @return sql string in sqlite dialect
-    """
-    def translate_sql(self, sql_string, sql_dialet = sqlglot.Dialects.SQLITE):
-        try:
-            sql = sqlglot.transpile(sql_string, read=sql_dialet, write=sqlglot.Dialects.SQLITE)[0]
-            return sql
-        except sqlglot.ParseError as e:
-            return str(e.errors)
 
     """
     @param path_to_values_file : direct,full file-path to a .txt file of
         data-manupulation SQL statements to add values to the database
     @param return : True if successful
     """
-    def add_values_to_database(self, path_to_values_file, sql_dialect = sqlglot.Dialects.SQLITE):
+    def add_values_to_database(self, path_to_values_file):
         try:
             # cursor seems to be correct way to begin accessing SQLite DB
             # Reference: https://docs.python.org/3.8/library/sqlite3.html
             cur = self.db.cursor()
             # read in the file as a whole
             database_values_in_text = Path(path_to_values_file).read_text()
-            # if not sqlite, then turn into sqlite
-            database_values_in_text = self.translate_sql(database_values_in_text, sql_dialect)
             # Will use the executescript function to build entire table
             # by reading in the file path_to_db_file
             cur.executescript(database_values_in_text)

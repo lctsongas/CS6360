@@ -58,14 +58,16 @@ class ProjectExample(db_builder):
     Constraints, etc.
     """
     def initialize_default_database(self):
+        if ( self.db_file != None):
+            return
         # Statements below are good way to ensure any way you execute python will find the 
         # filepath and .txt file with-respect-to the python file running this function
         schema_path = os.path.join(os.path.dirname(__file__), PROJECT_DATABASE_SCHEMA_FILE)
         values_path = os.path.join(os.path.dirname(__file__), PROJECT_DATABASE_VALUES_FILE)
         # Call the parent class' Schema builder function
-        self.initialize_database(schema_path, sqlglot.Dialects.SQLITE)
+        self.initialize_database(schema_path)
         # Call the parent class' Values function
-        self.add_values_to_database(values_path, sqlglot.Dialects.SQLITE)
+        self.add_values_to_database(values_path)
 
     """
     @return a list of SQL queries from EXAMPLE_DATABASE_QUERIES_FILE
