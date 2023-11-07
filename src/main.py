@@ -64,10 +64,35 @@ def run_project_queries(database):
         for row in original[1]:
             print(row, file=f)
         print('\n', file=f)
+        print('#########################################', file=f)
     f.close()
 
+"""
+@param database : project_example.py->VHS_Example object
+Repeats the steps done in run_project_queries but does 
+query manipulation to try and match optimized query
+"""
 def run_project_analyzer(database):
-    return None
+    query_result_list = database.run_queries(database.get_query_examples())
+    for original, optimized in query_result_list:
+        analyzer_obj = query_object(original[0], optimized[0])
+        result = begin_query_manipulation(analyzer_obj, 1000)
+        f = open("example.txt", "w")
+        print(str(analyzer_obj), file=f)
+        f.close()
+        return
+
+
+def begin_query_manipulation(analyzer, iterations=100):
+    result = False
+    #analyzer.query_tree.sort(key=lambda x: x[0])
+    for i in range(iterations):
+        if(len(analyzer.query_tree) > i):
+            print(analyzer.query_tree[i])
+    return result
+
+
+
 
 """        
 # Setup Example Relationship Database from class as example

@@ -1,5 +1,5 @@
 # SQLite is built-in to Python 3.11.5
-import os, sqlite3
+import os, timeit, sqlite3
 # pathlib used for reading in database files
 from pathlib import Path
 from base_db_builder import db_builder
@@ -105,19 +105,25 @@ class ProjectExample(db_builder):
     def run_queries(self, queries_list):
         original_query_result_list = []
         optimized_query_result_list = []
+        self.latest_time_results = {}
         # cursor seems to be correct way to begin accessing SQLite DB
         # Reference: https://docs.python.org/3.8/library/sqlite3.html
         cur = self.db.cursor()
         # Iterate over the queries
         for original, optimized in queries_list:    
-            # run the query
+            # run the query and time it
             cur.execute(original)
+            original_duration = timeit.timeit('cur.execute(original)', globals={'cur' : cur, 'original' : original}, number=10)
+            self.latest_time_results[original] = original_duration
             # fetchall will return all rows from query (if any)
             result = cur.fetchall()
             original_query_result_list.append((original, result))
 
-            # run the query
+            # run the query and time it
             cur.execute(optimized)
+            optimized_duration = timeit.timeit('cur.execute(optimized)', globals={'cur' : cur, 'optimized' : optimized}, number=10)
+            self.latest_time_results[optimized] = optimized_duration
+            
             # fetchall will return all rows from query (if any)
             result = cur.fetchall()
             optimized_query_result_list.append((optimized, result))

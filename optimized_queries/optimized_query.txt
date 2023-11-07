@@ -1,3 +1,7 @@
+SELECT a.actor_id
+FROM film_actor fa, actor a
+WHERE a.actor_id = fa.actor_id;
+
 -- Actors who have appeared in more than 10 films
 SELECT a.actor_id, a.first_name, a.last_name, COUNT(fa.film_id) AS film_count
 FROM actor a
