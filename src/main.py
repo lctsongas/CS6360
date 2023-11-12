@@ -76,6 +76,15 @@ def run_project_analyzer(database):
     query_result_list = database.run_queries(database.get_query_examples())
     for original, optimized in query_result_list:
         analyzer_obj = query_object(original[0], optimized[0])
+        analyzer_obj.sqlglot_optimize(database)
+        # Ayo
+        # This is a list of transformations to get from goal to optimized
+        for step in analyzer_obj.steps_to_match_goal_string:
+            # There are a lot of items we do NOT need to change so skip printing those
+            if ( 'Keep' in str(step)):
+                continue
+            # uncomment for lots of print statements
+            #print(step)
         result = begin_query_manipulation(analyzer_obj, 1000)
         f = open("example.txt", "w")
         print(str(analyzer_obj), file=f)

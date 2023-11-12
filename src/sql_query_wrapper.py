@@ -1,6 +1,6 @@
 from difflib import SequenceMatcher
 from sqlglot_wrapper import sqlglot_wrapper
-import re
+import re, sqlite3
 
 sql_wrapper = sqlglot_wrapper()
 DEPTH_INDEX = 0
@@ -52,9 +52,11 @@ class query_object:
     
 
     def __init__(self, query_str, goal_str):
+        self.sql_goal_string = goal_str
         self.goal_string = ' '.join(repr(sql_wrapper.analyze_query(goal_str)).split())
         self.create_goal_objects()
 
+        self.sql_query_string = query_str
         self.query_string = ' '.join(repr(sql_wrapper.analyze_query(query_str)).split())
         self.create_query_objects()
 
@@ -69,6 +71,41 @@ class query_object:
         self.query_tree = self.create_flat_tree(self.query_string)
         self.family_tree = self.create_family_tree(self.query_tree)
         self.aliases = self.get_aliases(self.family_tree)
+
+    def sqlglot_optimize(self, database):
+        db = database.get_db()
+        db.row_factory = sqlite3.Row
+        cur = db.cursor()
+        cur.execute("SELECT * FROM sqlite_master WHERE type='table'")
+        result = [dict(row) for row in cur.fetchall()]
+        tables = {}
+        for i in result:
+            tableName=i['name']
+            columnQuery = "PRAGMA table_info('%s')" % tableName
+            cur.execute(columnQuery)
+            tables[tableName] = dict([(col['name'], col['type']) for col in cur.fetchall()])
+            # Sanitize the types
+            sanitize_to = {'numeric' : 'INT',
+                           'INT' : 'INT',
+                           'VARCHAR' : 'STIRNG',
+                           'TIMESTAMP' : 'STRING',
+                           'CHAR' : 'STRING',
+                           'BLOBSUBTYPETEXT' : 'STRING',
+                           'BLOB' : 'STRING',
+                           'DECIMAL' : 'DOUBLE',
+                           'SMALLINT' : 'INT'}
+            for column in tables[tableName].keys():
+                original_type = tables[tableName][column]
+                original_type = re.sub('[^a-zA-Z]+', '', original_type)
+                y = sanitize_to[original_type]
+                tables[tableName][column] = sanitize_to[original_type]
+        dict_db = {'db' : tables}
+        sqlglot_optimized = sql_wrapper.optimize_query(self.sql_query_string, dict_db)
+        sql_diff = sql_wrapper.diff(str(sqlglot_optimized), self.sql_goal_string)
+        sql_query_to_goal = sql_wrapper.diff(self.sql_goal_string, self.sql_query_string)
+        self.steps_to_match_goal_string = sql_query_to_goal
+
+        
 
     """
     @param tree_obj : a sql_query_wrapper.Tree object root node 
