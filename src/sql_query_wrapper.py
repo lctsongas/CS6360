@@ -48,22 +48,31 @@ class Tree:
     
 class query_object:
 
-    TABLE_AND_ALIAS_REGEX = "TABLE this: \(IDENTIFIER this: [a-zA-Z_0-9]*, quoted: (False|True)\), alias: \(TABLEALIAS this: \(IDENTIFIER this: [a-zA-Z_0-9]*, quoted: (False|True)\)\)"
+    TABLE_AND_ALIAS_REGEX = r"TABLE this: \(IDENTIFIER this: [a-zA-Z_0-9]*, quoted: (False|True)\), alias: \(TABLEALIAS this: \(IDENTIFIER this: [a-zA-Z_0-9]*, quoted: (False|True)\)\)"
     
 
-    def __init__(self, query_str, goal_str = None):
-        self.query_string = ' '.join(repr(sql_wrapper.analyze_query(query_str)).split())
-        if ( goal_str != None):
-            self.goal_string = ' '.join(repr(sql_wrapper.analyze_query(goal_str)).split())
-        
-        self.query_tree = self.create_flat_tree(self.query_string)
+    def __init__(self, query_str, goal_str):
+        self.goal_string = ' '.join(repr(sql_wrapper.analyze_query(goal_str)).split())
+        self.create_goal_objects()
 
+        self.query_string = ' '.join(repr(sql_wrapper.analyze_query(query_str)).split())
+        self.create_query_objects()
+
+        self.new_commit = []
+    
+    def create_goal_objects(self):
+        self.goal_query_tree = self.create_flat_tree(self.goal_string)
+        self.goal_family_tree = self.create_family_tree(self.goal_query_tree)
+        self.goal_aliases = self.get_aliases(self.goal_family_tree)
+
+    def create_query_objects(self):
+        self.query_tree = self.create_flat_tree(self.query_string)
         self.family_tree = self.create_family_tree(self.query_tree)
         self.aliases = self.get_aliases(self.family_tree)
 
     """
     @param tree_obj : a sql_query_wrapper.Tree object root node 
-    @return a dictionary of aliases in the format of: { alias : object }
+    @return a dictionary of aliases in the format of: { alias : table name }
     """
     def get_aliases(self, tree_obj):
         aliases = {}
@@ -75,15 +84,80 @@ class query_object:
                 table = node_split[4].replace(',', '')
                 aliases[table_alias] = table
         return aliases
-            # Regex expressions used here to mark the table aliases
 
+    """
+    Calling this will have query identify all alises and move them around the 
+    tree to match the goal_query
+    """
+    def translate_aliases(self):
+        regex_iter = re.finditer(self.TABLE_AND_ALIAS_REGEX, self.query_string, re.MULTILINE)
+        goal_iter = re.finditer(self.TABLE_AND_ALIAS_REGEX, self.goal_string, re.MULTILINE)
+        query_alias_ordering = [item for item in regex_iter]
+        goal_alias_ordering = [item for item in goal_iter]
+        ordering = []
+        compiled_regex_str = r''
+        spacer_idx = 2
+        # Identify the goal ordering and save into ordering 
+        for goal_match in goal_alias_ordering:
+            for item_idx, item in enumerate(query_alias_ordering):
+                if goal_match.group() == item.group():
+                    ordering.append((2*item_idx)+1)
+                    ordering.append(spacer_idx)
+                    spacer_idx += 2
+        compiled_regex_str = r''
+        for query_match in query_alias_ordering:
+            compiled_regex_str += '(' + query_match.group().replace('(','\(').replace(')','\)') + ')(.*)'
+        # create the new ordering regex substring
+        ordering_regex_str = r''
+        for o in ordering:
+            ordering_regex_str += '\\' + str(o)
+        compiled_regex = re.compile(compiled_regex_str)
+        translated_query = compiled_regex.sub(ordering_regex_str, self.query_string)
+        self.add_commit(translated_query)
+    
+    def add_commit(self, updated_query):
+        new_commit_match = self.compare(x=updated_query)
+        self.new_commit.append((new_commit_match, updated_query))
+    
+    def get_recent_commit(self):
+        return self.new_commit[-1]
+    
+    def commit(self):
+        self.query_string = self.new_commit[LAST_VALUE_IN_LIST][VALUE_INDEX]
+        self.create_query_objects()
+        
+        
 
+    """
+    @param x : string or query_object in sqlglot representation. If left as None, then compares to own goal string
+    @param y : requires x to be populated, will compare x to y instead of to the calling object's information
 
-    def compare(self, other):
-        if not isinstance(other, query_object):
+    @return : float between [0,1.0] which is percent matching the compared object
+    """
+    def compare(self, x=None, y=None):
+        if ( x == None):
+            x = y
+            y = None
+        a = not isinstance(x, query_object)
+        b = not isinstance(x, str)
+        c = x != None
+        if ((not isinstance(x, query_object) and not isinstance(x, str)) and (x != None)):
             return NotImplemented
+        # x XOR y -> covers 1,0 and 0,1 cases
+        elif (x != None and y == None):
+            if ( isinstance(x, query_object) ):
+                return SequenceMatcher(None, self.goal_string, x.query_string).ratio()
+            if ( isinstance(x, str) ):
+                return SequenceMatcher(None, self.goal_string, x).ratio()
+        # x_bar AND y_bar -> covers 0,0 case
+        elif ( x == None and y == None):
+            return SequenceMatcher(None, self.query_string, self.goal_string).ratio()
+        # last case covered 1,1
         else:
-            return SequenceMatcher(None, self.query_string, other.query_string).ratio()
+            if ( isinstance(x, query_object) ):
+                return SequenceMatcher(None, x.query_string, y.query_string).ratio()
+            if ( isinstance(x, str) ):
+                return SequenceMatcher(None, x, y).ratio()
     
     """
     @param query_str is a repr(sqlglot) object format

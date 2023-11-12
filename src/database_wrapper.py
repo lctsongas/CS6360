@@ -111,6 +111,8 @@ class ProjectExample(db_builder):
         cur = self.db.cursor()
         # Iterate over the queries
         for original, optimized in queries_list:    
+            if ( len(original) < 2 ):
+                continue
             # run the query and time it
             cur.execute(original)
             original_duration = timeit.timeit('cur.execute(original)', globals={'cur' : cur, 'original' : original}, number=10)

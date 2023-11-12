@@ -1,5 +1,5 @@
 # SQLite is built-in to Python 3.11.5
-import sqlite3, sys
+import sqlite3, sys, collections
 from database_wrapper import *
 from sql_query_wrapper import query_object
 import sqlglot_wrapper as sqlanalyzer
@@ -80,17 +80,46 @@ def run_project_analyzer(database):
         f = open("example.txt", "w")
         print(str(analyzer_obj), file=f)
         f.close()
-        return
+        #return
 
 
 def begin_query_manipulation(analyzer, iterations=100):
     result = False
-    #analyzer.query_tree.sort(key=lambda x: x[0])
+    iterations = 1
     for i in range(iterations):
-        if(len(analyzer.query_tree) > i):
-            print(analyzer.query_tree[i])
+        query_aliases = analyzer.aliases
+        goal_aliases = analyzer.goal_aliases
+        # the aliases are output in-order based on DFS search
+        # so compare the two and decide if we need to simply
+        # TRNASLATE the query
+        if ( check_for_translations(query_aliases, goal_aliases) ):
+            # we have a 1:1 mapping of aliases but they may be out of order.
+            # manipulate the query to match the goal
+            print("Query can be optimized by TRANSLATION property...")
+            original_matching_flt = analyzer.compare()
+            original_matching = '{:.2%}'.format(original_matching_flt)
+            analyzer.translate_aliases()
+            translated_matching_flt = analyzer.get_recent_commit()[0]
+            translated_matching = '{:.2%}'.format(translated_matching_flt)
+            print("    Original Query Match to goal: " + original_matching)
+            print("  Translated Query Match to goal: " + translated_matching)
+            if ( translated_matching_flt > original_matching_flt ):
+                analyzer.commit()
+            else:
+                print("    Translation not optimal. NO TRANSLATION")
+        else:
+            print("Query cannot be optimized by TRANSLATION")
     return result
 
+def check_for_translations(aliases_a, aliases_b):
+    if (aliases_a == aliases_b):
+        count = 0
+        for ka, kb in zip(aliases_a.keys(), aliases_b.keys()):
+            if ( ka == kb ):
+                count += 1
+        if ( count != len(aliases_a)):
+            return True
+    return False
 
 
 
