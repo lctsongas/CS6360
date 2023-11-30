@@ -1,5 +1,13 @@
 import sqlglot, sqlite3
 from sqlglot.optimizer import optimize
+from sqlglot import transforms, exp
+
+INSTANCE_ID = 'instance'
+NAME_ID = 'name'
+TRANSFORM_ID = 'transform_type'
+EXPRESSION_ID = 'expression'
+TRANSFORM_REMOVE = 'Remove'
+TRANSFORM_INSERT = 'Insert'
 
 class sqlglot_wrapper:
 
@@ -54,3 +62,27 @@ class sqlglot_wrapper:
             return sqlglot.diff(sqlglot.parse_one(sql_goal[0]), sqlglot.parse_one(sql_glot[0]))
         except sqlglot.ParseError as e:
             return str(e.errors)
+    
+    def remove(self, sqlglot_obj, instance_id, name_id):
+        def remove_fun(node):
+            if (isinstance(node, instance_id) and node.name == name_id):
+                return None
+            return node
+        return sqlglot_obj.transform(remove_fun)
+    
+    def insert(self, sqlglot_obj, expression_id):
+        sql_original = sqlglot_obj.sql()
+        sqlglot_obj.append(expression_id.arg_key, expression_id.sql())
+        sql_new = sqlglot_obj.sql()
+        x = 1
+        return sqlglot_obj
+
+    def transform(self, sql_query_string, transform_func):
+        sqlglot_obj = sqlglot.parse_one(sql_query_string)
+        transform_type = transform_func[TRANSFORM_ID]
+        new_sql_string = ''
+        if (transform_type == TRANSFORM_REMOVE):
+            new_sql_string = self.remove(sqlglot_obj, transform_func[INSTANCE_ID], transform_func[NAME_ID]).sql()
+        if ( transform_type == TRANSFORM_INSERT):
+            new_sql_string = self.insert(sqlglot_obj, transform_func[EXPRESSION_ID]).sql()
+        return new_sql_string

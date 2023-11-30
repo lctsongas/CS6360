@@ -1,5 +1,5 @@
 from difflib import SequenceMatcher
-from sqlglot_wrapper import sqlglot_wrapper
+from sqlglot_wrapper import *
 import re, sqlite3
 
 sql_wrapper = sqlglot_wrapper()
@@ -60,7 +60,8 @@ class query_object:
         self.query_string = ' '.join(repr(sql_wrapper.analyze_query(query_str)).split())
         self.create_query_objects()
 
-        self.new_commit = []
+        self.new_commit = []  
+        self.modified_query_string = [self.query_string]
     
     def create_goal_objects(self):
         self.goal_query_tree = self.create_flat_tree(self.goal_string)
@@ -71,6 +72,65 @@ class query_object:
         self.query_tree = self.create_flat_tree(self.query_string)
         self.family_tree = self.create_family_tree(self.query_tree)
         self.aliases = self.get_aliases(self.family_tree)
+    
+    def sqlglot_remove(self, AST_step):
+        AST_step_str = str(AST_step).split('Remove(expression=')[1][:-1]
+        AST_step_str = ' '.join(AST_step_str.split())
+        new_modified_query_string = []
+        old_modified_query_string = list(self.modified_query_string)
+        for idx in enumerate(old_modified_query_string):
+            idx = idx[0]
+            if ( AST_step_str in old_modified_query_string[idx] ):
+                new_modified_query_string.extend(old_modified_query_string[idx].split(AST_step_str))
+            else:
+                new_modified_query_string.append(old_modified_query_string[idx])
+        self.modified_query_string = new_modified_query_string
+        self.add_commit(''.join(self.modified_query_string))
+        return self.modified_query_string
+    
+    def sqlglot_insert(self, AST_step):
+        AST_step_str = str(AST_step).split('Insert(expression=')[1][:-1]
+        AST_step_str = ' '.join(AST_step_str.split())
+        new_modified_query_string = []
+        old_modified_query_string = list(self.modified_query_string)
+        if ( len(old_modified_query_string) < 2):
+            print('Issue!')
+            return None
+        else:
+            new_element = old_modified_query_string[-2] + AST_step_str + old_modified_query_string[-1]
+            if ( len(old_modified_query_string) != 2 ):
+                new_modified_query_string.extend(old_modified_query_string[:-2])
+                new_modified_query_string.append(new_element)
+                
+                self.modified_query_string = new_modified_query_string
+                self.add_commit(''.join(self.modified_query_string))
+            else:
+                new_modified_query_string.append(new_element)
+                self.query_string = new_modified_query_string[0]
+                self.modified_query_string = new_modified_query_string[0]
+                self.add_commit(''.join(self.modified_query_string))
+                self.commit()
+
+            return self.modified_query_string
+
+    def sqlglot_transform(self):
+        new_sql_query_string = self.sql_query_string
+        for step in self.steps_to_match_goal_string:
+            transform_step = {
+                INSTANCE_ID : None,
+                NAME_ID : None,
+                TRANSFORM_ID : None,
+                EXPRESSION_ID : None
+            }
+            if ( TRANSFORM_REMOVE in str(step) ):
+                transform_step[TRANSFORM_ID] = TRANSFORM_REMOVE
+            if ( TRANSFORM_INSERT in str(step) ):
+                transform_step[TRANSFORM_ID] = TRANSFORM_INSERT
+            transform_step[INSTANCE_ID] = type(step.expression)
+            transform_step[NAME_ID] = step.expression.name
+            transform_step[EXPRESSION_ID] = step.expression
+            new_sql_query_string = sql_wrapper.transform(new_sql_query_string, transform_step)
+        return None
 
     def sqlglot_optimize(self, database):
         db = database.get_db()

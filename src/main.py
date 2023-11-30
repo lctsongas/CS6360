@@ -74,18 +74,34 @@ query manipulation to try and match optimized query
 """
 def run_project_analyzer(database):
     query_result_list = database.run_queries(database.get_query_examples())
+    idx = 0
     for original, optimized in query_result_list:
         analyzer_obj = query_object(original[0], optimized[0])
         analyzer_obj.sqlglot_optimize(database)
+        #analyzer_obj.sqlglot_transform()
+        #print(analyzer_obj.steps_to_match_goal_string)
+        print('Query ' + str(idx))
+        print('  ORIGINAL TIME: ' + str(database.latest_time_results[original[0]]))
+        print('  OPTIMIZE TIME: ' + str(database.latest_time_results[optimized[0]]))
         # Ayo
         # This is a list of transformations to get from goal to optimized
         for step in analyzer_obj.steps_to_match_goal_string:
             # There are a lot of items we do NOT need to change so skip printing those
             if ( 'Keep' in str(step)):
                 continue
+            else:
+                if ( 'Remove' in str(step)):
+                    # do somethin
+                    analyzer_obj.sqlglot_remove(step)
+                elif ( 'Insert' in str(step)):
+                    # do somethin
+                    analyzer_obj.sqlglot_insert(step)
+                else:
+                    print(step)
             # uncomment for lots of print statements
             #print(step)
         result = begin_query_manipulation(analyzer_obj, 1000)
+        idx += 1
         f = open("example.txt", "w")
         print(str(analyzer_obj), file=f)
         f.close()
@@ -94,10 +110,37 @@ def run_project_analyzer(database):
 
 def begin_query_manipulation(analyzer, iterations=100):
     result = False
-    iterations = 1
     for i in range(iterations):
         query_aliases = analyzer.aliases
         goal_aliases = analyzer.goal_aliases
+        # base-case check
+        if ( analyzer.compare() == 1.0 ):
+            if ( i == 0 ):
+                print('  Basic translations and JOIN optimizations done to match goal query!')
+            print('  SQL query optimized! Steps taken')
+            print('    Steps:')
+            for matching, step in analyzer.new_commit:
+                print('    Step ' + str(i) + ' match to goal: %' + str(matching*100))
+                print('    ' + step[0:10] + '...' + step[-10:])
+                i+=1
+
+            break
+        if ( len(analyzer.steps_to_match_goal_string) != 0 ):
+            for idx, step in enumerate(analyzer.steps_to_match_goal_string):
+                if ( 'Keep' in str(step) or 'Move' in str(step)):
+                    break
+            analyzer.steps_to_match_goal_string = analyzer.steps_to_match_goal_string[0:idx-1]
+            for step in analyzer.steps_to_match_goal_string[:-1]:
+                matching = analyzer.new_commit[i][0]
+                print('    Step ' + str(i) + ' match to goal: %' + str(matching*100))
+                print('      ' + str(step)[0:50] + '...')
+                i+=1
+            matching = 1.0
+            step = analyzer.steps_to_match_goal_string[-1]
+            print('    Step ' + str(i) + ' match to goal: %' + str(matching*100))
+            print('      ' + str(step)[0:50] + '...')
+            break
+                
         # the aliases are output in-order based on DFS search
         # so compare the two and decide if we need to simply
         # TRNASLATE the query
