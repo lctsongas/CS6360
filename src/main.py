@@ -121,7 +121,7 @@ def begin_query_manipulation(analyzer, iterations=100):
             print('    Steps:')
             for matching, step in analyzer.new_commit:
                 print('    Step ' + str(i) + ' match to goal: %' + str(matching*100))
-                print('    ' + step[0:10] + '...' + step[-10:])
+                print('    ' + step[0:25] + '...' + step[-25:])
                 i+=1
 
             break
@@ -129,7 +129,7 @@ def begin_query_manipulation(analyzer, iterations=100):
             for idx, step in enumerate(analyzer.steps_to_match_goal_string):
                 if ( 'Keep' in str(step) or 'Move' in str(step)):
                     break
-            analyzer.steps_to_match_goal_string = analyzer.steps_to_match_goal_string[0:idx-1]
+            analyzer.steps_to_match_goal_string = analyzer.steps_to_match_goal_string[0:idx]
             for step in analyzer.steps_to_match_goal_string[:-1]:
                 matching = analyzer.new_commit[i][0]
                 print('    Step ' + str(i) + ' match to goal: %' + str(matching*100))
